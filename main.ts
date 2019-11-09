@@ -51,8 +51,7 @@ async function runDink() {
     "deno",
     "run",
     "-A",
-    "-r",
-    "https://denopkg.com/keroxp/dink/main.ts"
+    "https://denopkg.com/keroxp/dink@v0.6.2/main.ts"
   ]);
 }
 
@@ -114,7 +113,11 @@ async function createPullRequest({
       })
     }
   );
-  console.log("PullRequest Created.");
+  if (resp.status === 200) {  
+    console.log("PullRequest Created."); 
+  } else {
+    throw new Error(`Failed to create PullRequest: status=${resp.status}, error=${await resp.text()}`);
+  }
 }
 
 async function main() {
