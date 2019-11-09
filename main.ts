@@ -8,7 +8,7 @@ type ReleaseResponse = {
   published_at: string;
 };
 
-async function hasActivePullRequest(branch: string): Promise<boolean> {
+async function hasActivePullRequest({ branch }: Opts): Promise<boolean> {
   console.log("Checking active PllRequest...");
   const proc = Deno.run({
     args: ["git", "branch", "-a"],
@@ -92,12 +92,28 @@ async function exec(args: string[]) {
   }
 }
 
-async function commitChanges(denoVersion: string, branch: string) {
+type Opts = {
+  user: string;
+  repo: string;
+  token: string;
+  base: string;
+  branch: string;
+  title: string;
+  denoVersion: string;
+};
+async function commitChanges({ denoVersion, branch, user, repo, token }: Opts) {
   await exec(["git", "config", "--local", "user.email", "actions@github.com"]);
   await exec(["git", "config", "--local", "user.name", "Github Actions"]);
   await exec(["git", "checkout", "-b", branch]);
   await exec(["git", "add", "."]);
   await exec(["git", "commit", "-m", `bump: deno@${denoVersion}`]);
+  await exec([
+    "git",
+    "remote",
+    "set-url",
+    "origin",
+    `https://${user}:${token}@github.com/${user}/${repo}.git`
+  ]);
   await exec(["git", "push", "origin", branch]);
 }
 
@@ -108,14 +124,7 @@ async function createPullRequest({
   token,
   repo,
   branch
-}: {
-  user: string;
-  repo: string;
-  token: string;
-  title: string;
-  base: string;
-  branch: string;
-}) {
+}: Opts) {
   console.log(
     `Creating PullRequest on https://github.com/${user}/${repo}/pulls`
   );
@@ -158,22 +167,24 @@ async function main() {
   if (current !== latest) {
     console.log(`Needs Update: current=${current}, latest=${latest}`);
     const branch = `botbump-deno@${latest}`;
-    if (await hasActivePullRequest(branch)) {
+    const opts: Opts = {
+      user,
+      repo,
+      token,
+      branch,
+      title: `bump: deno@${latest}`,
+      base: "master",
+      denoVersion: latest
+    };
+    if (await hasActivePullRequest(opts)) {
       Deno.exit(0);
     }
     await updateModuleJson(latest);
     await updateDenovFile(latest);
     await runDink();
     await runFmt();
-    await commitChanges(latest, branch);
-    await createPullRequest({
-      user,
-      repo,
-      token,
-      branch,
-      title: `bump: deno@${latest}`,
-      base: "master"
-    });
+    await commitChanges(opts);
+    await createPullRequest(opts);
     console.log("Workflow completed.");
   } else {
     console.log(`You are using latest Deno: ${latest}`);
