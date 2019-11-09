@@ -114,10 +114,14 @@ async function createPullRequest({
       })
     }
   );
-  if (resp.status === 200) {  
-    console.log("PullRequest Created."); 
+  if (resp.status === 200) {
+    console.log("PullRequest Created.");
   } else {
-    throw new Error(`Failed to create PullRequest: status=${resp.status}, error=${await resp.text()}`);
+    throw new Error(
+      `Failed to create PullRequest: status=${
+        resp.status
+      }, error=${await resp.text()}`
+    );
   }
 }
 
