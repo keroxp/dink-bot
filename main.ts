@@ -8,6 +8,26 @@ type ReleaseResponse = {
   published_at: string;
 };
 
+async function hasActivePullRequest(branch: string): Promise<boolean> {
+  console.log("Checking active PllRequest...");
+  const proc = Deno.run({
+    args: ["git", "branch", "-a"],
+    stdout: "piped"
+  });
+  try {
+    const output = decoder.decode(await proc.output());
+    if (output.match(`remotes/origin/${branch}`)) {
+      console.log(`Remote branch ${branch} exists. Skip bumping`);
+      return true;
+    } else {
+      console.log(`No PullRequest found for ${branch}. Continue.`);
+      return false;
+    }
+  } finally {
+    proc.close();
+  }
+}
+
 async function getLatestDenoVersion(): Promise<string> {
   const resp = await fetch(
     "https://api.github.com/repos/denoland/deno/releases"
@@ -77,7 +97,7 @@ async function commitChanges(denoVersion: string, branch: string) {
   await exec(["git", "config", "--local", "user.name", "Github Actions"]);
   await exec(["git", "checkout", "-b", branch]);
   await exec(["git", "add", "."]);
-  await exec(["git", "commit", "-m", `"bump: deno@${denoVersion}"`]);
+  await exec(["git", "commit", "-m", `bump: deno@${denoVersion}`]);
   await exec(["git", "push", "origin", branch]);
 }
 
@@ -114,10 +134,14 @@ async function createPullRequest({
       })
     }
   );
-  if (resp.status === 200) {  
-    console.log("PullRequest Created."); 
+  if (resp.status === 201) {
+    console.log("PullRequest Created.");
   } else {
-    throw new Error(`Failed to create PullRequest: status=${resp.status}, error=${await resp.text()}`);
+    throw new Error(
+      `Failed to create PullRequest: status=${
+        resp.status
+      }, error=${await resp.text()}`
+    );
   }
 }
 
@@ -134,6 +158,9 @@ async function main() {
   if (current !== latest) {
     console.log(`Needs Update: current=${current}, latest=${latest}`);
     const branch = `botbump-deno@${latest}`;
+    if (await hasActivePullRequest(branch)) {
+      Deno.exit(0);
+    }
     await updateModuleJson(latest);
     await updateDenovFile(latest);
     await runDink();
