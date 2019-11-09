@@ -73,36 +73,77 @@ async function exec(args: string[]) {
   }
 }
 
-async function commitChanges(denoVersion: string) {
-  await exec([
-    "git",
-    "config",
-    "--local",
-    "user.email",
-    "kerokerokerop@gmail.com"
-  ]);
-  await exec(["git", "config", "--local", "user.name", "keroxp-bot"]);
-  await exec(["git", "checkout", "-b", `botbump-deno@${denoVersion}`]);
+async function commitChanges(denoVersion: string, branch: string) {
+  await exec(["git", "config", "--local", "user.email", "actions@github.com"]);
+  await exec(["git", "config", "--local", "user.name", "Github Actions"]);
+  await exec(["git", "checkout", "-b", branch]);
   await exec(["git", "add", "."]);
-  await exec([
-    "git",
-    "commit",
-    "-m",
-    `"bump: deno@${denoVersion}", std@${denoVersion}`
-  ]);
-  // await exec(["git", "push", "origin", `botbump-deno@${denoVersion}`]);
+  await exec(["git", "commit", "-m", `"bump: deno@${denoVersion}"`]);
+  await exec(["git", "push", "origin", branch]);
+}
+
+async function createPullRequest({
+  user,
+  base,
+  title,
+  token,
+  repo,
+  branch
+}: {
+  user: string;
+  repo: string;
+  token: string;
+  title: string;
+  base: string;
+  branch: string;
+}) {
+  console.log(
+    `Creating PullRequest on https://github.com/${user}/${repo}/pulls`
+  );
+  const resp = await fetch(
+    `https://api.github.com/repos/${user}/${repo}/pulls`,
+    {
+      headers: new Headers({
+        authorization: `token ${token}`,
+        "content-type": "application/json"
+      }),
+      body: JSON.stringify({
+        title: title,
+        head: `${user}:${branch}`,
+        base: base
+      })
+    }
+  );
+  console.log("PullRequest Created.");
 }
 
 async function main() {
+  const token = Deno.env("GITHUB_TOKEN");
+  const user = Deno.env("GITHUB_USER");
+  const repo = Deno.env("GITHUB_REPO");
+  if (!user || !token || !repo) {
+    console.error("Set GITHUB_TOKEN, GITHUB_USER, GITHUB_REPO");
+    Deno.exit(1);
+  }
   const current = await getCurrentDenoVersion();
   const latest = await getLatestDenoVersion();
   if (current !== latest) {
     console.log(`Needs Update: current=${current}, latest=${latest}`);
+    const branch = `botbump-deno@${latest}`;
     await updateModuleJson(latest);
     await updateDenovFile(latest);
     await runDink();
     await runFmt();
-    await commitChanges(latest);
+    await commitChanges(latest, branch);
+    await createPullRequest({
+      user,
+      repo,
+      token,
+      branch,
+      title: `bump: deno@${latest}`,
+      base: "master"
+    });
+    console.log("Workflow completed.");
   } else {
     console.log(`You are using latest Deno: ${latest}`);
   }
