@@ -1,8 +1,6 @@
 name: Bump
 
-on: 
-  schedule:
-    - cron: 30 13 * * *
+on: [push]
 
 jobs:
   build:
