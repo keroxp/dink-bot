@@ -86,9 +86,14 @@ async function updateDenovFile(denoVersion: string) {
 }
 
 async function exec(args: string[]) {
-  const status = await Deno.run({ args }).status();
-  if (!status.success) {
-    throw new Error("run failed");
+  const proc = Deno.run({ args });
+  try {
+    const status = await proc.status();
+    if (!status.success) {
+      throw new Error("run failed");
+    }
+  } finally {
+    proc.close();
   }
 }
 
@@ -189,6 +194,7 @@ async function main() {
   } else {
     console.log(`You are using latest Deno: ${latest}`);
   }
+  Deno.exit(0);
 }
 
 main();
