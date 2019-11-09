@@ -102,6 +102,7 @@ async function createPullRequest({
   const resp = await fetch(
     `https://api.github.com/repos/${user}/${repo}/pulls`,
     {
+      method: "POST",
       headers: new Headers({
         authorization: `token ${token}`,
         "content-type": "application/json"
