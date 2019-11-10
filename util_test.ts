@@ -16,6 +16,7 @@ test("upgradePatchVersion", () => {
   assertThrows(() => {
     upgradePatchVersion("v0.1");
   });
+  assertEquals(0, 1);
 });
 
 runIfMain(import.meta);
