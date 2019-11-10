@@ -1,3 +1,5 @@
+import { upgradePatchVersion } from "./util.ts";
+
 type ReleaseResponse = {
   url: string;
   tag_name: string;
@@ -8,7 +10,7 @@ type ReleaseResponse = {
   published_at: string;
 };
 
-async function hasActivePullRequest({ branch }: Opts): Promise<boolean> {
+async function hasActivePullRequest(branch: string): Promise<boolean> {
   console.log("Checking active PllRequest...");
   const proc = Deno.run({
     args: ["git", "branch", "-a"],
@@ -90,7 +92,7 @@ async function exec(args: string[]) {
   try {
     const status = await proc.status();
     if (!status.success) {
-      throw new Error("run failed");
+      throw new Error("run failed: "+args);
     }
   } finally {
     proc.close();
@@ -101,17 +103,27 @@ type Opts = {
   user: string;
   repo: string;
   token: string;
-  base: string;
-  branch: string;
-  title: string;
   denoVersion: string;
 };
-async function commitChanges({ denoVersion, branch, user, repo, token }: Opts) {
+async function commitChanges({
+  branch,
+  user,
+  repo,
+  token,
+  message,
+  createNewBranch
+}: Opts & {
+  createNewBranch: boolean;
+  branch: string;
+  message: string;
+}) {
   await exec(["git", "config", "--local", "user.email", "actions@github.com"]);
   await exec(["git", "config", "--local", "user.name", "Github Actions"]);
-  await exec(["git", "checkout", "-b", branch]);
+  if (createNewBranch) {
+    await exec(["git", "checkout", "-b", branch]);
+  }
   await exec(["git", "add", "."]);
-  await exec(["git", "commit", "-m", `bump: deno@${denoVersion}`]);
+  await exec(["git", "commit", "-m", message]);
   await exec([
     "git",
     "remote",
@@ -124,12 +136,16 @@ async function commitChanges({ denoVersion, branch, user, repo, token }: Opts) {
 
 async function createPullRequest({
   user,
-  base,
-  title,
   token,
   repo,
-  branch
-}: Opts) {
+  title,
+  branch,
+  base
+}: Opts & {
+  title: string;
+  branch: string;
+  base: string;
+}) {
   console.log(
     `Creating PullRequest on https://github.com/${user}/${repo}/pulls`
   );
@@ -159,6 +175,59 @@ async function createPullRequest({
   }
 }
 
+async function checkTests(): Promise<boolean> {
+  try {
+    await exec(["deno", "-A", "test"]);
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+async function throwApiErrorIfNotValid(resp: Response, validStatus: number) {
+  if (resp.status !== validStatus) {
+    throw new Error(`${resp.status}: ${await resp.text()}`);
+  }
+}
+
+async function getRepoLatestRelease(opts: Opts): Promise<string> {
+  const resp = await fetch(
+    `https://api.github.com/repos/${opts.user}/${opts.repo}/releases/latest`
+  );
+  await throwApiErrorIfNotValid(resp, 200);
+  const latest = (await resp.json()) as ReleaseResponse;
+  return latest.name;
+}
+
+async function createRelease(
+  opts: Opts & {
+    targetBranch: string;
+    description: string;
+  }
+) {
+  const latest = await getRepoLatestRelease(opts);
+  const nextPatch = upgradePatchVersion(latest);
+  const resp = await fetch(
+    `https://api.github.com/repos/${opts.user}/${opts.repo}/releases`,
+    {
+      method: "POST",
+      headers: new Headers({
+        authorization: `token ${opts.token}`,
+        "content-type": "application/json"
+      }),
+      body: JSON.stringify({
+        tag_name: nextPatch,
+        target_commitish: opts.targetBranch,
+        name: nextPatch,
+        body: opts.description,
+        draft: false,
+        prerelease: false
+      })
+    }
+  );
+  await throwApiErrorIfNotValid(resp, 201);
+}
+
 async function main() {
   const token = Deno.env("GITHUB_TOKEN");
   const user = Deno.env("GITHUB_USER");
@@ -171,25 +240,52 @@ async function main() {
   const latest = await getLatestDenoVersion();
   if (current !== latest) {
     console.log(`Needs Update: current=${current}, latest=${latest}`);
-    const branch = `botbump-deno@${latest}`;
+    const headBranch = `botbump-deno@${latest}`;
+    const commitMessage = `bump: deno@${latest}`;
     const opts: Opts = {
       user,
       repo,
       token,
-      branch,
-      title: `bump: deno@${latest}`,
-      base: "master",
       denoVersion: latest
     };
-    if (await hasActivePullRequest(opts)) {
+    if (await hasActivePullRequest(headBranch)) {
       Deno.exit(0);
     }
     await updateModuleJson(latest);
     await updateDenovFile(latest);
     await runDink();
     await runFmt();
-    await commitChanges(opts);
-    await createPullRequest(opts);
+    console.log("Running tests to check compatibility with new version");
+    if (await checkTests()) {
+      console.log("Test Passed. Commit changes and publish new release");
+      await commitChanges({
+        ...opts,
+        branch: "master",
+        message: commitMessage,
+        createNewBranch: false
+      });
+      await createRelease({
+        ...opts,
+        targetBranch: "master",
+        description: commitMessage
+      });
+    } else {
+      console.log(
+        "Test Failed. Check out to head branch and create new PullRequest"
+      );
+      await commitChanges({
+        ...opts,
+        branch: headBranch,
+        message: commitMessage,
+        createNewBranch: true
+      });
+      await createPullRequest({
+        ...opts,
+        title: commitMessage,
+        base: "master",
+        branch: headBranch
+      });
+    }
     console.log("Workflow completed.");
   } else {
     console.log(`You are using latest Deno: ${latest}`);
@@ -197,4 +293,6 @@ async function main() {
   Deno.exit(0);
 }
 
-main();
+if (import.meta.main) {
+  main();
+}
