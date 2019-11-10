@@ -92,7 +92,7 @@ async function exec(args: string[]) {
   try {
     const status = await proc.status();
     if (!status.success) {
-      throw new Error("run failed: "+args);
+      throw new Error("run failed: " + args);
     }
   } finally {
     proc.close();
