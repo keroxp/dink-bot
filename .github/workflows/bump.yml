@@ -2,21 +2,13 @@ name: Bump
 
 on:
   schedule:
-    - cron: 30 13 * * *    
+    - cron: 0 13 * * *    
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v1
-    - name: Install Deno
-      run: |
-        DENO_VERSION=$(cat .denov)
-        curl -fsSL https://deno.land/x/install/install.sh | bash -s -- ${DENO_VERSION}
-    - name: Check And Bump
-      env:
-        GITHUB_USER: keroxp
-        GITHUB_REPO: dink-bot
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        export PATH=$HOME/.deno/bin:$PATH
-        deno -A main.ts
+    - uses: keroxp/dink-bot@v0.2.1
+      with:
+        github-repository: ${{ github.repository }}
+        github-token: ${{ secrets.GITHUB_TOKEN }}
