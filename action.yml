@@ -1,0 +1,16 @@
+# action.yml
+name: 'Dink bot'
+description: 'Bump deno and std version of dink project'
+inputs:
+  github-repository:  
+    description: ':owner/:repo style github repository. Use github.repository'
+    required: true
+  github-token:
+    description: 'Github token to create Release and PullRequest. Use secrets.GITHUB_TOKEN'
+    required: true
+runs:
+  using: 'docker'
+  image: 'Dockerfile'
+  args:
+    - ${{ inputs.github-repository }}
+    - ${{ inputs.github-token }}

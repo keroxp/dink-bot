@@ -12,6 +12,7 @@ type ReleaseResponse = {
 
 async function hasActivePullRequest(branch: string): Promise<boolean> {
   console.log("Checking active PllRequest...");
+  await exec(["git", "fetch", "-p"]);
   const proc = Deno.run({
     args: ["git", "branch", "-a"],
     stdout: "piped"
@@ -100,14 +101,14 @@ async function exec(args: string[]) {
 }
 
 type Opts = {
-  user: string;
+  owner: string;
   repo: string;
   token: string;
   denoVersion: string;
 };
 async function commitChanges({
   branch,
-  user,
+  owner,
   repo,
   token,
   message,
@@ -129,13 +130,13 @@ async function commitChanges({
     "remote",
     "set-url",
     "origin",
-    `https://${user}:${token}@github.com/${user}/${repo}.git`
+    `https://${owner}:${token}@github.com/${owner}/${repo}.git`
   ]);
   await exec(["git", "push", "origin", branch]);
 }
 
 async function createPullRequest({
-  user,
+  owner,
   token,
   repo,
   title,
@@ -147,10 +148,10 @@ async function createPullRequest({
   base: string;
 }) {
   console.log(
-    `Creating PullRequest on https://github.com/${user}/${repo}/pulls`
+    `Creating PullRequest on https://github.com/${owner}/${repo}/pulls`
   );
   const resp = await fetch(
-    `https://api.github.com/repos/${user}/${repo}/pulls`,
+    `https://api.github.com/repos/${owner}/${repo}/pulls`,
     {
       method: "POST",
       headers: new Headers({
@@ -159,7 +160,7 @@ async function createPullRequest({
       }),
       body: JSON.stringify({
         title: title,
-        head: `${user}:${branch}`,
+        head: `${owner}:${branch}`,
         base: base
       })
     }
@@ -173,6 +174,13 @@ async function createPullRequest({
       }, error=${await resp.text()}`
     );
   }
+}
+
+async function upgradeDeno(version: string): Promise<void> {
+  console.log("Installing deno@" + version + "...");
+  await exec(["curl", "-fsSL", "https://deno.land/x/install/install.sh", "-O"]);
+  await exec(["sh", "install.sh", version]);
+  console.log("Installed.");
 }
 
 async function checkTests(): Promise<boolean> {
@@ -192,7 +200,7 @@ async function throwApiErrorIfNotValid(resp: Response, validStatus: number) {
 
 async function getRepoLatestRelease(opts: Opts): Promise<string> {
   const resp = await fetch(
-    `https://api.github.com/repos/${opts.user}/${opts.repo}/releases/latest`
+    `https://api.github.com/repos/${opts.owner}/${opts.repo}/releases/latest`
   );
   await throwApiErrorIfNotValid(resp, 200);
   const latest = (await resp.json()) as ReleaseResponse;
@@ -208,7 +216,7 @@ async function createRelease(
   const latest = await getRepoLatestRelease(opts);
   const nextPatch = upgradePatchVersion(latest);
   const resp = await fetch(
-    `https://api.github.com/repos/${opts.user}/${opts.repo}/releases`,
+    `https://api.github.com/repos/${opts.owner}/${opts.repo}/releases`,
     {
       method: "POST",
       headers: new Headers({
@@ -229,21 +237,24 @@ async function createRelease(
 }
 
 async function main() {
-  const token = Deno.env("GITHUB_TOKEN");
-  const user = Deno.env("GITHUB_USER");
-  const repo = Deno.env("GITHUB_REPO");
-  if (!user || !token || !repo) {
-    console.error("Set GITHUB_TOKEN, GITHUB_USER, GITHUB_REPO");
-    Deno.exit(1);
+  const repository = Deno.args[1];
+  const token = Deno.args[2];
+  if (!token || !repository) {
+    throw new Error("Usage: main.ts token123456 :owner/:repository");
   }
+  if (!repository.match(/^(.+?)\/(.+?)$/)) {
+    throw new Error("repository must be :owner/:repo style: "+repository)
+  }
+  const [owner, repo] = repository.split("/");
   const current = await getCurrentDenoVersion();
   const latest = await getLatestDenoVersion();
   if (current !== latest) {
     console.log(`Needs Update: current=${current}, latest=${latest}`);
+    await upgradeDeno(latest);
     const headBranch = `botbump-deno@${latest}`;
     const commitMessage = `bump: deno@${latest}`;
     const opts: Opts = {
-      user,
+      owner,
       repo,
       token,
       denoVersion: latest
@@ -290,9 +301,13 @@ async function main() {
   } else {
     console.log(`You are using latest Deno: ${latest}`);
   }
-  Deno.exit(0);
 }
 
 if (import.meta.main) {
-  main();
+  main().then(() => {
+    Deno.exit(0)
+  }).catch(e => {
+    console.error(e);
+    Deno.exit(1);
+  });
 }
