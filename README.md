@@ -20,7 +20,17 @@ Currently dink-bot bump `modules.json` file if it depends on `https://deno.land/
 
 ## Github Actions
 
-See example cron workflow: https://github.com/keroxp/dink/blob/master/.github/workflows/bump.yml
+```yml
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
+    - uses: keroxp/dink-bot@v0.2.1
+      with:
+        github-repository: ${{ github.repository }}
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+```        
 
 ## DISCLAIMER
 
