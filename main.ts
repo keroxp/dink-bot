@@ -243,7 +243,7 @@ async function main() {
     throw new Error("Usage: main.ts token123456 :owner/:repository");
   }
   if (!repository.match(/^(.+?)\/(.+?)$/)) {
-    throw new Error("repository must be :owner/:repo style: "+repository)
+    throw new Error("repository must be :owner/:repo style: " + repository);
   }
   const [owner, repo] = repository.split("/");
   const current = await getCurrentDenoVersion();
@@ -304,10 +304,12 @@ async function main() {
 }
 
 if (import.meta.main) {
-  main().then(() => {
-    Deno.exit(0)
-  }).catch(e => {
-    console.error(e);
-    Deno.exit(1);
-  });
+  main()
+    .then(() => {
+      Deno.exit(0);
+    })
+    .catch(e => {
+      console.error(e);
+      Deno.exit(1);
+    });
 }
