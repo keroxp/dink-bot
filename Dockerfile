@@ -8,4 +8,4 @@ RUN curl -fsSL https://deno.land/x/install/install.sh | sh -s -- ${DENO_VERSION}
 COPY . /src
 RUN deno fetch /src/main.ts
 WORKDIR /src
-ENTRYPOINT [ "deno", "--allow-net", "--allow-read", "--allow-env", "--allow-run", "/src/main.ts"]
+ENTRYPOINT [ "deno", "-A", "/src/main.ts"]
