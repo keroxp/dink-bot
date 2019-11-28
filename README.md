@@ -30,7 +30,7 @@ jobs:
       with:
         github-repository: ${{ github.repository }}
         github-token: ${{ secrets.GITHUB_TOKEN }}
-```        
+```
 
 ## DISCLAIMER
 

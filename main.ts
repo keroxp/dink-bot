@@ -1,5 +1,3 @@
-import { upgradePatchVersion } from "./util.ts";
-
 type ReleaseResponse = {
   url: string;
   tag_name: string;
@@ -183,59 +181,6 @@ async function upgradeDeno(version: string): Promise<void> {
   console.log("Installed.");
 }
 
-async function checkTests(): Promise<boolean> {
-  try {
-    await exec(["deno", "-A", "test"]);
-    return true;
-  } catch (e) {
-    return false;
-  }
-}
-
-async function throwApiErrorIfNotValid(resp: Response, validStatus: number) {
-  if (resp.status !== validStatus) {
-    throw new Error(`${resp.status}: ${await resp.text()}`);
-  }
-}
-
-async function getRepoLatestRelease(opts: Opts): Promise<string> {
-  const resp = await fetch(
-    `https://api.github.com/repos/${opts.owner}/${opts.repo}/releases/latest`
-  );
-  await throwApiErrorIfNotValid(resp, 200);
-  const latest = (await resp.json()) as ReleaseResponse;
-  return latest.name;
-}
-
-async function createRelease(
-  opts: Opts & {
-    targetBranch: string;
-    description: string;
-  }
-) {
-  const latest = await getRepoLatestRelease(opts);
-  const nextPatch = upgradePatchVersion(latest);
-  const resp = await fetch(
-    `https://api.github.com/repos/${opts.owner}/${opts.repo}/releases`,
-    {
-      method: "POST",
-      headers: new Headers({
-        authorization: `token ${opts.token}`,
-        "content-type": "application/json"
-      }),
-      body: JSON.stringify({
-        tag_name: nextPatch,
-        target_commitish: opts.targetBranch,
-        name: nextPatch,
-        body: opts.description,
-        draft: false,
-        prerelease: false
-      })
-    }
-  );
-  await throwApiErrorIfNotValid(resp, 201);
-}
-
 async function main() {
   const repository = Deno.args[1];
   const token = Deno.args[2];
@@ -266,37 +211,21 @@ async function main() {
     await updateDenovFile(latest);
     await runDink();
     await runFmt();
-    console.log("Running tests to check compatibility with new version");
-    if (await checkTests()) {
-      console.log("Test Passed. Commit changes and publish new release");
-      await commitChanges({
-        ...opts,
-        branch: "master",
-        message: commitMessage,
-        createNewBranch: false
-      });
-      await createRelease({
-        ...opts,
-        targetBranch: "master",
-        description: commitMessage
-      });
-    } else {
-      console.log(
-        "Test Failed. Check out to head branch and create new PullRequest"
-      );
-      await commitChanges({
-        ...opts,
-        branch: headBranch,
-        message: commitMessage,
-        createNewBranch: true
-      });
-      await createPullRequest({
-        ...opts,
-        title: commitMessage,
-        base: "master",
-        branch: headBranch
-      });
-    }
+    console.log(
+      "Test Failed. Check out to head branch and create new PullRequest"
+    );
+    await commitChanges({
+      ...opts,
+      branch: headBranch,
+      message: commitMessage,
+      createNewBranch: true
+    });
+    await createPullRequest({
+      ...opts,
+      title: commitMessage,
+      base: "master",
+      branch: headBranch
+    });
     console.log("Workflow completed.");
   } else {
     console.log(`You are using latest Deno: ${latest}`);
