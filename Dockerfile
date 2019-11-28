@@ -1,5 +1,5 @@
 FROM debian:stretch
-RUN apt update -y && apt install curl -y
+RUN apt update -y && apt install curl git -y
 ARG DENO_VERSION=v0.24.0
 ENV DENO_DIR=/deno
 ENV DENO_INSTALL=${DENO_DIR}/.deno

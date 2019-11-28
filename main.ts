@@ -174,13 +174,6 @@ async function createPullRequest({
   }
 }
 
-async function upgradeDeno(version: string): Promise<void> {
-  console.log("Installing deno@" + version + "...");
-  await exec(["curl", "-fsSL", "https://deno.land/x/install/install.sh", "-O"]);
-  await exec(["sh", "install.sh", version]);
-  console.log("Installed.");
-}
-
 async function main() {
   const repository = Deno.args[1];
   const token = Deno.args[2];
@@ -195,7 +188,6 @@ async function main() {
   const latest = await getLatestDenoVersion();
   if (current !== latest) {
     console.log(`Needs Update: current=${current}, latest=${latest}`);
-    await upgradeDeno(latest);
     const headBranch = `botbump-deno@${latest}`;
     const commitMessage = `bump: deno@${latest}`;
     const opts: Opts = {
