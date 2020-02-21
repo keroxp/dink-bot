@@ -1,5 +1,5 @@
 {
- "https://deno.land/std": {
+  "https://deno.land/std": {
     "version": "@v0.34.0",
     "modules": ["/testing/asserts.ts"]
   }
