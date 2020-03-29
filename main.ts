@@ -175,8 +175,7 @@ async function createPullRequest({
 }
 
 async function main() {
-  const repository = Deno.args[1];
-  const token = Deno.args[2];
+  const [repository, toke] = Deno.args;
   if (!token || !repository) {
     throw new Error("Usage: main.ts token123456 :owner/:repository");
   }
@@ -203,9 +202,6 @@ async function main() {
     await updateDenovFile(latest);
     await runDink();
     await runFmt();
-    console.log(
-      "Test Failed. Check out to head branch and create new PullRequest"
-    );
     await commitChanges({
       ...opts,
       branch: headBranch,
