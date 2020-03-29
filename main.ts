@@ -77,7 +77,7 @@ async function runDink() {
 }
 
 async function runFmt() {
-  await exec(["deno", "fmt", "*"]);
+  await exec(["deno", "fmt"]);
 }
 
 async function updateDenovFile(denoVersion: string) {
