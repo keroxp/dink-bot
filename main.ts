@@ -12,7 +12,7 @@ async function hasActivePullRequest(branch: string): Promise<boolean> {
   console.log("Checking active PllRequest...");
   await exec(["git", "fetch", "-p"]);
   const proc = Deno.run({
-    args: ["git", "branch", "-a"],
+    cmd: ["git", "branch", "-a"],
     stdout: "piped"
   });
   try {
@@ -86,12 +86,12 @@ async function updateDenovFile(denoVersion: string) {
   console.log("Updated .denov");
 }
 
-async function exec(args: string[]) {
-  const proc = Deno.run({ args });
+async function exec(cmd: string[]) {
+  const proc = Deno.run({ cmd });
   try {
     const status = await proc.status();
     if (!status.success) {
-      throw new Error("run failed: " + args);
+      throw new Error("run failed: " + cmd);
     }
   } finally {
     proc.close();
@@ -230,7 +230,7 @@ if (import.meta.main) {
       Deno.exit(0);
     })
     .catch(e => {
-      console.error(e);
+      console.error(e.message);
       Deno.exit(1);
     });
 }
