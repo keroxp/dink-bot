@@ -175,7 +175,7 @@ async function createPullRequest({
 }
 
 async function main() {
-  const [repository, toke] = Deno.args;
+  const [repository, token] = Deno.args;
   if (!token || !repository) {
     throw new Error("Usage: main.ts token123456 :owner/:repository");
   }
