@@ -13,7 +13,7 @@ async function hasActivePullRequest(branch: string): Promise<boolean> {
   await exec(["git", "fetch", "-p"]);
   const proc = Deno.run({
     cmd: ["git", "branch", "-a"],
-    stdout: "piped"
+    stdout: "piped",
   });
   try {
     const output = decoder.decode(await proc.output());
@@ -31,7 +31,7 @@ async function hasActivePullRequest(branch: string): Promise<boolean> {
 
 async function getLatestDenoVersion(): Promise<string> {
   const resp = await fetch(
-    "https://api.github.com/repos/denoland/deno/releases"
+    "https://api.github.com/repos/denoland/deno/releases",
   );
   if (resp.status === 200) {
     const [latest] = (await resp.json()) as ReleaseResponse[];
@@ -56,12 +56,12 @@ async function updateModuleJson(denoVersion: string) {
   const mod = JSON.parse(json);
   if (mod["https://deno.land/std"]) {
     console.log(
-      "Updating modules.json https://deno.land/std version to " + denoVersion
+      "Updating modules.json https://deno.land/std version to " + denoVersion,
     );
     mod["https://deno.land/std"]["version"] = "@" + denoVersion;
     Deno.writeFile(
       "modules.json",
-      encoder.encode(JSON.stringify(mod, null, "  "))
+      encoder.encode(JSON.stringify(mod, null, "  ")),
     );
     console.log("Updated modules.json");
   }
@@ -72,7 +72,7 @@ async function runDink() {
     "deno",
     "run",
     "-A",
-    "https://denopkg.com/keroxp/dink@v0.8.3/main.ts"
+    "https://denopkg.com/keroxp/dink@v0.8.3/main.ts",
   ]);
 }
 
@@ -110,7 +110,7 @@ async function commitChanges({
   repo,
   token,
   message,
-  createNewBranch
+  createNewBranch,
 }: Opts & {
   createNewBranch: boolean;
   branch: string;
@@ -128,7 +128,7 @@ async function commitChanges({
     "remote",
     "set-url",
     "origin",
-    `https://${owner}:${token}@github.com/${owner}/${repo}.git`
+    `https://${owner}:${token}@github.com/${owner}/${repo}.git`,
   ]);
   await exec(["git", "push", "origin", branch]);
 }
@@ -139,14 +139,14 @@ async function createPullRequest({
   repo,
   title,
   branch,
-  base
+  base,
 }: Opts & {
   title: string;
   branch: string;
   base: string;
 }) {
   console.log(
-    `Creating PullRequest on https://github.com/${owner}/${repo}/pulls`
+    `Creating PullRequest on https://github.com/${owner}/${repo}/pulls`,
   );
   const resp = await fetch(
     `https://api.github.com/repos/${owner}/${repo}/pulls`,
@@ -154,22 +154,21 @@ async function createPullRequest({
       method: "POST",
       headers: new Headers({
         authorization: `token ${token}`,
-        "content-type": "application/json"
+        "content-type": "application/json",
       }),
       body: JSON.stringify({
         title: title,
         head: `${owner}:${branch}`,
-        base: base
-      })
-    }
+        base: base,
+      }),
+    },
   );
   if (resp.status === 201) {
     console.log("PullRequest Created.");
   } else {
     throw new Error(
-      `Failed to create PullRequest: status=${
-        resp.status
-      }, error=${await resp.text()}`
+      `Failed to create PullRequest: status=${resp.status}, error=${await resp
+        .text()}`,
     );
   }
 }
@@ -193,7 +192,7 @@ async function main() {
       owner,
       repo,
       token,
-      denoVersion: latest
+      denoVersion: latest,
     };
     if (await hasActivePullRequest(headBranch)) {
       Deno.exit(0);
@@ -206,13 +205,13 @@ async function main() {
       ...opts,
       branch: headBranch,
       message: commitMessage,
-      createNewBranch: true
+      createNewBranch: true,
     });
     await createPullRequest({
       ...opts,
       title: commitMessage,
       base: "master",
-      branch: headBranch
+      branch: headBranch,
     });
     console.log("Workflow completed.");
   } else {
@@ -225,7 +224,7 @@ if (import.meta.main) {
     .then(() => {
       Deno.exit(0);
     })
-    .catch(e => {
+    .catch((e) => {
       console.error(e.message);
       Deno.exit(1);
     });
