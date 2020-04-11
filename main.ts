@@ -72,7 +72,7 @@ async function runDink() {
     "deno",
     "run",
     "-A",
-    "https://denopkg.com/keroxp/dink@v0.8.3/main.ts"
+    "https://denopkg.com/keroxp/dink/main.ts"
   ]);
 }
 
